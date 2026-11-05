@@ -62,11 +62,13 @@ spec:
               mountPath: /hls
           resources:
             requests:
-              cpu: 250m
-              memory: 256Mi
-            limits:
-              cpu: "1"
+              cpu: 500m
               memory: 1Gi
+            limits:
+              # vp9→h264 transcode of ~1GiB sources needs headroom beyond
+              # the input size; 1Gi was OOMKilled on the sample webm.
+              cpu: "2"
+              memory: 4Gi
         - name: nginx
           image: docker.io/nginxinc/nginx-unprivileged:1.27-alpine
           imagePullPolicy: IfNotPresent
