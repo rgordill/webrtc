@@ -97,6 +97,9 @@ edit `manifests/video-server/base/40-configmap-video.yaml` to use `-c copy`.
 Player URL (Azure demo):
 `https://video-server.apps.demo.pqbt8.azure.redhatworkshops.io/`
 
+Verified on OpenShift 5.0 (Azure): Ingress admits only when `spec.tls` is omitted
+(edge termination via `route.openshift.io/*` annotations + cluster wildcard cert).
+
 ## Production notes
 
 * No root: containers use `restricted-v2`-compatible securityContext.
