@@ -6,15 +6,13 @@ metadata:
   labels:
     app.kubernetes.io/name: video-server
   annotations:
+    # OpenShift maps this Ingress to a Route. Do not set spec.tls with an
+    # empty secretName on OCP 5 — the ingress-to-route controller skips it.
+    # Edge + Redirect here uses the cluster wildcard cert.
     route.openshift.io/termination: edge
     route.openshift.io/insecure-policy: Redirect
 spec:
   ingressClassName: openshift-default
-  # Empty secretName: OpenShift router uses the cluster wildcard cert for
-  # *.apps.<cluster-domain>.
-  tls:
-    - hosts:
-        - video-server.apps.example.com
   rules:
     - host: video-server.apps.example.com
       http:

@@ -20,4 +20,3 @@ replacements:
           name: video-server
         fieldPaths:
           - spec.rules.0.host
-          - spec.tls.0.hosts.0
