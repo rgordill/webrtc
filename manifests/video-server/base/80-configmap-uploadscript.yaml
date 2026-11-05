@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: video-upload-script
+  namespace: media
+  labels:
+    app.kubernetes.io/name: video-server
+data:
+  upload.sh: |
+    #!/bin/sh
+    set -u
+    URL="${VIDEO_URL:?VIDEO_URL required}"
+    OUT="${VIDEO_FILE:?VIDEO_FILE required}"
+    cd /media
+    echo "downloading ${URL} -> ${OUT}"
+    curl -fL --retry 5 --retry-delay 5 -o "${OUT}.part" "${URL}" || exit 1
+    mv "${OUT}.part" "${OUT}"
+    echo "done"
+    ls -l -- "${OUT}"

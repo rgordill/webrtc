@@ -1,0 +1,61 @@
+# Helper to pull the ("provided later") video into the PVC from an HTTP(S)
+# URL. NOT synced automatically as a running workload: apply it manually once
+# the URL is known:
+#
+#   kubectl -n media delete job video-upload --ignore-not-found
+#   sed 's|VIDEO_URL_PLACEHOLDER|https://example.com/my/video.webm|' \
+#     81-upload-job-template.yaml | kubectl apply -n media -f -
+#
+# Or copy a local file into the PVC (see README).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: video-upload
+  namespace: media
+  labels:
+    app.kubernetes.io/name: video-server
+    app.kubernetes.io/component: upload-helper
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: video-server
+        app.kubernetes.io/component: upload-helper
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: fetch
+          image: docker.io/curlimages/curl:8.11.0
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          command: ["/bin/sh", "/scripts/upload.sh"]
+          env:
+            - name: VIDEO_URL
+              value: "VIDEO_URL_PLACEHOLDER" # <-- set before applying
+            - name: VIDEO_FILE
+              value: "video.webm" # <-- must match 40-configmap-video.yaml video-file
+          volumeMounts:
+            - name: media
+              mountPath: /media
+            - name: script
+              mountPath: /scripts
+      volumes:
+        - name: media
+          persistentVolumeClaim:
+            claimName: video-source
+        - name: script
+          configMap:
+            name: video-upload-script
+            items:
+              - key: upload.sh
+                path: upload.sh
+                mode: 0555

@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - path: ingress-domain.yaml
+    target:
+      kind: ConfigMap
+      name: ingress-domain
+# Re-apply after the ConfigMap patch: replacements in the base run before
+# overlay patches, so the Ingress host must be rewritten here.
+replacements:
+  - source:
+      kind: ConfigMap
+      name: ingress-domain
+      fieldPath: data.host
+    targets:
+      - select:
+          kind: Ingress
+          name: video-server
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0

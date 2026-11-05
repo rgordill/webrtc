@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: video-server
+  namespace: media
+  labels:
+    app.kubernetes.io/name: video-server
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: video-server
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

@@ -1,0 +1,14 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: stunner-gatewayclass
+  labels:
+    app.kubernetes.io/part-of: webrtc
+spec:
+  controllerName: stunner.l7mp.io/gateway-operator
+  parametersRef:
+    group: stunner.l7mp.io
+    kind: GatewayConfig
+    name: stunner-gatewayconfig
+    namespace: stunner-system
+  description: STUNner WebRTC TURN gateway for Kubernetes

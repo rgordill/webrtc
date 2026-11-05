@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: webrtc
+resources:
+  - 00-namespace.yaml
+  - 10-pvc.yaml
+  - 20-deployment.yaml
+  - 30-configmap-nginx.yaml
+  - 40-configmap-video.yaml
+  - 50-service.yaml
+  - 55-ingress-domain.yaml
+  - 60-ingress.yaml
+  - 70-configmap-player.yaml
+  - 80-configmap-uploadscript.yaml
+replacements:
+  - source:
+      kind: ConfigMap
+      name: ingress-domain
+      fieldPath: data.host
+    targets:
+      - select:
+          kind: Ingress
+          name: video-server
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0

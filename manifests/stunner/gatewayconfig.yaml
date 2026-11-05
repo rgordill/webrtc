@@ -1,0 +1,14 @@
+apiVersion: stunner.l7mp.io/v1
+kind: GatewayConfig
+metadata:
+  name: stunner-gatewayconfig
+  namespace: stunner-system
+  labels:
+    app.kubernetes.io/part-of: webrtc
+spec:
+  realm: stunner.l7mp.io
+  # Static credentials for the PoC. Switch to ephemeral (authType: ephemeral)
+  # and wire the auth service for anything beyond a lab.
+  authType: static
+  userName: "webrtc"
+  password: "webrtc"

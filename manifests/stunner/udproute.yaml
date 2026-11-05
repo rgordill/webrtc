@@ -1,0 +1,17 @@
+apiVersion: stunner.l7mp.io/v1
+kind: UDPRoute
+metadata:
+  name: video-server
+  namespace: stunner-system
+  labels:
+    app.kubernetes.io/part-of: webrtc
+spec:
+  parentRefs:
+    - name: media-gateway
+  rules:
+    # STUNner lets relayed clients reach the backend pods at any port, not
+    # only the ports listed on the Service: one UDPRoute covers every media
+    # port of the video server.
+    - backendRefs:
+        - name: video-server
+          namespace: media
