@@ -14,7 +14,8 @@ metadata:
 spec:
   ingressClassName: openshift-default
   rules:
-    - host: video-server.apps.example.com
+    # PLACEHOLDER → patched by ApplicationSet from cluster ingress-domain
+    - host: PLACEHOLDER
       http:
         paths:
           - path: /

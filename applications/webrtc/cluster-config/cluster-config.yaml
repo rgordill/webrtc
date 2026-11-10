@@ -1,21 +1,20 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: webrtc-video-server
+  name: webrtc-cluster-config
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: default
   destination:
     name: in-cluster
-    namespace: media
+    namespace: openshift-gitops
   source:
     repoURL: https://github.com/rgordill/webrtc.git
     targetRevision: HEAD
-    path: manifests/video-server/base
+    path: manifests/cluster-config
   syncPolicy:
     automated:
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
       - ServerSideApply=true

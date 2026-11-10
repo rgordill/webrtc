@@ -2,13 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: openshift-gitops
 resources:
+  - ../../cluster-config
   - ../../helm
   - ../../video-server
   - ../../stunner-config
-patches:
-  - target:
-      group: argoproj.io
-      version: v1alpha1
-      kind: Application
-      name: webrtc-video-server
-    path: video-server-path.yaml

@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: webrtc-video-server
+  namespace: openshift-gitops
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            argocd.argoproj.io/cluster-name: in-cluster
+  template:
+    metadata:
+      name: webrtc-video-server
+      namespace: openshift-gitops
+      annotations:
+        argocd.argoproj.io/sync-wave: "2"
+        ingress-host: 'video-server.{{ index .metadata.annotations "ingress-domain" }}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/rgordill/webrtc.git
+        targetRevision: HEAD
+        path: manifests/video-server/base
+        kustomize:
+          patches:
+            - target:
+                kind: Ingress
+                name: video-server
+              patch: |-
+                - op: replace
+                  path: /spec/rules/0/host
+                  value: "video-server.{{ index .metadata.annotations "ingress-domain" }}"
+      destination:
+        server: "{{.server}}"
+        namespace: media
+      syncPolicy:
+        automated:
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ingress-domain
-  namespace: media
-data:
-  host: video-server.apps.demo.pqbt8.azure.redhatworkshops.io
