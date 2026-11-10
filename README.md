@@ -78,6 +78,18 @@ export KUBECONFIG=~/PoC/azure/demo/auth/kubeconfig
 # Secret is intentionally outside Git/Argo and must be backed up separately.
 python3 scripts/livekit-token.py bootstrap
 
+# Install the cluster-wide certificate controller once (admin bootstrap).
+kubectl apply -k manifests/cert-manager-operator
+kubectl wait --for=condition=Established \
+  crd/certmanagers.operator.openshift.io --timeout=300s
+kubectl apply -f manifests/cert-manager-operator/config.yaml
+kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=300s
+
+# Bootstrap a constrained intermediate for cert-manager, not the root key.
+python3 scripts/livekit-ca.py \
+  --ca-cert ~/PoC/labmad/cert-manager/ca.crt \
+  --ca-key ~/PoC/labmad/cert-manager/ca.key
+
 # Admin bootstrap: scoped controller permissions for workload reconciliation.
 kubectl apply -k manifests/gitops-rbac
 
@@ -155,12 +167,31 @@ Use this repository's test page for an explicit relay-only configuration.
 
 ### TLS trust on the Azure lab
 
-The test page and WSS signaling use the existing OpenShift wildcard certificate.
-The current Azure lab presents a private/self-signed CA chain. Trust the cluster
-router CA in your browser/OS, or configure a publicly trusted ingress certificate,
-before testing. Check both HTTPS hosts without certificate errors. Merely
-clicking through a warning may not make camera access or WSS work. This repository
-does not disable TLS verification for clients.
+LiveKit signaling and the relay-only player use a scoped certificate signed by
+**Brno labmad CA** via the dedicated **LiveKit labmad intermediate**, stored in
+`media/livekit-labmad-tls`. Both Ingresses reference
+that Secret; their TLS hosts are patched from the discovered ingress domain.
+The cluster-wide router certificate is unchanged. A laptop already trusting
+labmad needs no additional OpenShift router CA for these two endpoints.
+
+The Red Hat cert-manager operator is installed by the admin bootstrap in
+`manifests/cert-manager-operator` (OLM stable-v1.20, starting at v1.20.1).
+The GitOps slice manages a namespace-scoped `Issuer/media/livekit-labmad` and
+`Certificate/media/livekit-labmad`. cert-manager issues 90-day leaf certificates,
+renews them 30 days before expiry, and rotates the leaf key on renewal. OpenShift
+propagates the renewed Secret to its generated edge Routes.
+
+`scripts/livekit-ca.py` signs a one-year intermediate with the local labmad root
+and uploads only that intermediate key/chain to `media/livekit-labmad-issuer`.
+Its critical DNS name constraints permit the two LiveKit hostnames (and their
+subdomains), exclude IP-address certificates, and its path-length constraint is
+zero. TLS clients enforce these constraints; cert-manager's CA issuer does not
+validate requested names against them when issuing. The root key stays local.
+Do not grant untrusted workloads access to the intermediate Secret.
+
+The intermediate is an admin bootstrap outside Argo CD and is not auto-renewed.
+Before its one-year expiry, run the helper again, then `cmctl renew livekit-labmad -n media` to reissue the leaf with the new intermediate. Monitor both issuer and
+leaf expiry. cert-manager does not extend or renew the labmad root.
 
 ### GitOps controller permissions
 
@@ -170,8 +201,10 @@ Services, Deployments and Ingresses in `media`, and Gateway/GatewayConfig/UDPRou
 resources in `stunner-system`. Cluster-scoped permissions allow GatewayClass
 creation and updates/deletion of `stunner-gatewayclass` only (Kubernetes cannot
 restrict create by resource name). It does not grant access to LiveKit API-key
-Secrets. Apply this bootstrap with an admin identity before syncing. Adjust the
-ServiceAccount subject if using a different Argo CD instance.
+Secrets. The role also permits creating cert-manager Issuers/Certificates in
+`media` and updating/deleting only those named `livekit-labmad`. It does not
+permit modifying the intermediate CA Secret. Apply this bootstrap with an admin
+identity before syncing. Adjust the ServiceAccount subject if using a different Argo CD instance.
 
 ### GitOps sync and migration
 
@@ -264,7 +297,7 @@ python3 scripts/livekit-token.py token --room video-stream --identity guest-caro
 
 Send each person their individual token and these instructions:
 
-1. Trust the lab's ingress CA on their device first (see TLS instructions below).
+1. Ensure their browser trusts labmad (see TLS instructions below).
 2. Open [LiveKit Meet → Custom](https://meet.livekit.io/?tab=custom).
 3. Enter **LiveKit URL**: `wss://livekit.apps.demo.p225x.azure.redhatworkshops.io`.
 4. Enter their token in **Token**, then connect. The token selects `video-stream`;
@@ -285,28 +318,23 @@ remove the old ingress before changing rooms/identities. Scaling its Deployment
 to zero alone does not terminate an already-running ingress. To stop the stream,
 scale the manager to zero and delete its ingress using the LiveKit Ingress API.
 
-### Trust the OpenShift router CA
+### Browser trust for labmad
 
-The Azure lab currently uses the default private OpenShift ingress CA. Export
-its **public certificate** using your admin kubeconfig:
+Both LiveKit hosts now present certificates issued by **Brno labmad CA**. Devices
+that already trust labmad should connect normally. Other viewers need that
+public CA certificate imported into their browser/OS as an authority for websites.
+Use the public file `~/PoC/labmad/cert-manager/ca.crt`; never share `ca.key`.
 
-```bash
-kubectl -n openshift-ingress-operator get secret router-ca \
-  -o jsonpath='{.data.tls\.crt}' | base64 -d > /tmp/webrtc-router-ca.crt
-```
+CA SHA-256 fingerprint:
+`91:CB:F2:F1:EF:47:F0:79:0B:88:6E:FC:86:09:90:1B:86:6B:BB:A9:BC:E0:FA:7F:30:C2:DD:86:48:37:46:43`
 
-Import that certificate as a trusted authority for websites into each viewer's
-browser/OS trust store (Firefox: Settings → Privacy & Security → Certificates →
-View Certificates → Authorities → Import). Chromium follows the platform's
-certificate manager. Restart the browser if needed, then verify these pages open
-without certificate warnings before connecting from Meet:
+Verify these pages open without certificate warnings before connecting from Meet:
 
 - https://livekit.apps.demo.p225x.azure.redhatworkshops.io/ (plain `OK` response)
 - https://livekit-test.apps.demo.p225x.azure.redhatworkshops.io/
 
-Only distribute this public CA certificate, never the Secret's private key.
-For guests outside the lab, a publicly trusted wildcard ingress certificate is
-preferable to installing the private CA on every device.
+Keep **Enable end-to-end encryption** unchecked in Meet; the file ingress is
+not an E2EE publisher. HTTPS/WSS and WebRTC transport encryption remain enabled.
 
 ### Streaming health
 
@@ -323,11 +351,10 @@ Chromium installed):
 ```bash
 python3 scripts/verify-stream.py --kubeconfig "$KUBECONFIG" \
   --url https://livekit-test.apps.demo.p225x.azure.redhatworkshops.io/ \
-  --server-url wss://livekit.apps.demo.p225x.azure.redhatworkshops.io \
-  --allow-private-ca
+  --server-url wss://livekit.apps.demo.p225x.azure.redhatworkshops.io
 ```
 
-The flag accepts the private certificate in the temporary test browser only.
+Run without `--allow-private-ca` to check the labmad trust chain as well.
 The test joins the room from both the player and hosted Meet, verifies selected
 TURN/UDP candidates and increasing audio/video RTP bytes and decoded frames,
 then closes its sessions. It never logs API keys or room tokens.

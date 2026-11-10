@@ -33,6 +33,27 @@ rules:
   resources:
   - ingresses
   verbs: *id001
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - issuers
+  - certificates
+  verbs:
+  - create
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - issuers
+  - certificates
+  resourceNames:
+  - livekit-labmad
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
