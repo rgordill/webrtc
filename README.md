@@ -317,7 +317,22 @@ kubectl -n media logs deploy/livekit-ingress --tail=30
 ```
 
 Expect `ENDPOINT_PUBLISHING` in manager logs and both audio/video tracks in the
-room. Verify browser inbound RTP bytes and decoded video frames increase over
+room. For a repeatable browser test (temporary Playwright environment with
+Chromium installed):
+
+```bash
+python3 scripts/verify-stream.py --kubeconfig "$KUBECONFIG" \
+  --url https://livekit-test.apps.demo.p225x.azure.redhatworkshops.io/ \
+  --server-url wss://livekit.apps.demo.p225x.azure.redhatworkshops.io \
+  --allow-private-ca
+```
+
+The flag accepts the private certificate in the temporary test browser only.
+The test joins the room from both the player and hosted Meet, verifies selected
+TURN/UDP candidates and increasing audio/video RTP bytes and decoded frames,
+then closes its sessions. It never logs API keys or room tokens.
+
+ Verify browser inbound RTP bytes and decoded video frames increase over
 time, with a relay/UDP selected candidate. HLS input adds segment buffering
 latency; the LiveKit output is WebRTC but does not remove that input latency.
 

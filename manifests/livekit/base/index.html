@@ -21,9 +21,11 @@ const el = id => document.getElementById(id);
 el('url').value = `wss://${location.hostname.replace(/^livekit-test\./, 'livekit.')}`;
 let room;
 function removeTracks() { el('tracks').replaceChildren(); }
-function attach(track, local = false) {
+function attach(track, local = false, participant) {
   const media = track.attach();
   media.autoplay = true; media.playsInline = true;
+  media.dataset.participant = participant?.identity || "local";
+  media.title = participant?.name || participant?.identity || "Local preview";
   if (local) media.muted = true;
   el('tracks').append(media);
   media.play()?.catch(() => { el('status').textContent = 'Click Enable audio playback to allow playback.'; });
@@ -38,7 +40,7 @@ try {
     el('watch').disabled = true;
     try {
       room = new Room();
-      room.on(RoomEvent.TrackSubscribed, track => attach(track));
+      room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => attach(track, false, participant));
       room.on(RoomEvent.TrackUnsubscribed, track => track.detach().forEach(node => node.remove()));
       room.on(RoomEvent.Disconnected, () => { removeTracks(); el('status').textContent = 'Disconnected'; el('join').disabled = false; el('watch').disabled = false; el('leave').disabled = true; });
       room.on(RoomEvent.AudioPlaybackStatusChanged, () => { if (!room.canPlaybackAudio) el('status').textContent = 'Click Enable audio playback.'; });
