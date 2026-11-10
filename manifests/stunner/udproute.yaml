@@ -7,11 +7,15 @@ metadata:
     app.kubernetes.io/part-of: webrtc
 spec:
   parentRefs:
-    - name: media-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: media-gateway
   rules:
     # STUNner lets relayed clients reach the backend pods at any port, not
     # only the ports listed on the Service: one UDPRoute covers every media
     # port of the LiveKit pods.
     - backendRefs:
-        - name: livekit-server
+        - group: ""
+          kind: Service
+          name: livekit-server
           namespace: media
