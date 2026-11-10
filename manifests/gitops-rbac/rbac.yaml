@@ -1,0 +1,129 @@
+# One-time admin bootstrap: workload reconciliation, no API-key Secret access.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: media
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: webrtc-gitops-reconciler
+  namespace: media
+rules:
+- apiGroups:
+  - ''
+  resources:
+  - configmaps
+  - services
+  verbs: &id001
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs: *id001
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs: *id001
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: webrtc-gitops-reconciler
+  namespace: media
+subjects:
+- kind: ServiceAccount
+  name: openshift-gitops-argocd-application-controller
+  namespace: openshift-gitops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: webrtc-gitops-reconciler
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stunner-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: webrtc-gitops-reconciler
+  namespace: stunner-system
+rules:
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gateways
+  verbs: &id001
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - stunner.l7mp.io
+  resources:
+  - gatewayconfigs
+  - udproutes
+  verbs: *id001
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: webrtc-gitops-reconciler
+  namespace: stunner-system
+subjects:
+- kind: ServiceAccount
+  name: openshift-gitops-argocd-application-controller
+  namespace: openshift-gitops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: webrtc-gitops-reconciler
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: webrtc-gitops-gatewayclass
+rules:
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gatewayclasses
+  verbs:
+  - create
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gatewayclasses
+  resourceNames:
+  - stunner-gatewayclass
+  verbs:
+  - get
+  - update
+  - patch
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: webrtc-gitops-gatewayclass
+subjects:
+- kind: ServiceAccount
+  name: openshift-gitops-argocd-application-controller
+  namespace: openshift-gitops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: webrtc-gitops-gatewayclass

@@ -75,6 +75,9 @@ export KUBECONFIG=~/PoC/azure/demo/auth/kubeconfig
 # Secret is intentionally outside Git/Argo and must be backed up separately.
 python3 scripts/livekit-token.py bootstrap
 
+# Admin bootstrap: scoped controller permissions for workload reconciliation.
+kubectl apply -k manifests/gitops-rbac
+
 kubectl kustomize applications/webrtc/overlays/azure
 kubectl apply -k applications/webrtc/overlays/azure
 
@@ -155,6 +158,17 @@ router CA in your browser/OS, or configure a publicly trusted ingress certificat
 before testing. Check both HTTPS hosts without certificate errors. Merely
 clicking through a warning may not make camera access or WSS work. This repository
 does not disable TLS verification for clients.
+
+### GitOps controller permissions
+
+`manifests/gitops-rbac` is a one-time admin bootstrap, outside the applications it
+permits. It grants the standard OpenShift GitOps controller CRUD on ConfigMaps,
+Services, Deployments and Ingresses in `media`, and Gateway/GatewayConfig/UDPRoute
+resources in `stunner-system`. Cluster-scoped permissions allow GatewayClass
+creation and updates/deletion of `stunner-gatewayclass` only (Kubernetes cannot
+restrict create by resource name). It does not grant access to LiveKit API-key
+Secrets. Apply this bootstrap with an admin identity before syncing. Adjust the
+ServiceAccount subject if using a different Argo CD instance.
 
 ### GitOps sync and migration
 
