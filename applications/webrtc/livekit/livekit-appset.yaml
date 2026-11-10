@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: webrtc-livekit
+  namespace: openshift-gitops
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            argocd.argoproj.io/cluster-name: in-cluster
+  template:
+    metadata:
+      name: webrtc-livekit
+      namespace: openshift-gitops
+      annotations:
+        argocd.argoproj.io/sync-wave: "2"
+        ingress-host: 'livekit.{{ index .metadata.annotations "ingress-domain" }}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/rgordill/webrtc.git
+        targetRevision: HEAD
+        path: manifests/livekit/base
+        kustomize:
+          patches:
+            - target:
+                kind: Ingress
+                name: livekit-server
+              patch: |-
+                - op: replace
+                  path: /spec/rules/0/host
+                  value: "livekit.{{ index .metadata.annotations "ingress-domain" }}"
+            - target:
+                kind: Ingress
+                name: livekit-test
+              patch: |-
+                - op: replace
+                  path: /spec/rules/0/host
+                  value: "livekit-test.{{ index .metadata.annotations "ingress-domain" }}"
+      destination:
+        server: "{{.server}}"
+        namespace: media
+      syncPolicy:
+        automated:
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

@@ -1,0 +1,17 @@
+port: 7880
+bind_addresses: ["0.0.0.0"]
+key_file: /etc/livekit/keys/keys.yaml
+rtc:
+  # Advertise the pod IP: STUNner can reach it inside the cluster.
+  use_external_ip: false
+  udp_port: 7882
+  tcp_port: 0
+  # Supplied to clients by signaling; the test client also sets relay policy.
+  turn_servers:
+    - host: 135.237.110.232
+      port: 3478
+      protocol: udp
+      username: webrtc
+      credential: webrtc
+turn:
+  enabled: false

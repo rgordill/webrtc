@@ -1,0 +1,43 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: livekit-server
+  annotations:
+    route.openshift.io/termination: edge
+    route.openshift.io/insecure-policy: Redirect
+    haproxy.router.openshift.io/timeout: 1h
+spec:
+  ingressClassName: openshift-default
+  rules:
+  - host: PLACEHOLDER
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: livekit-server
+            port:
+              number: 7880
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: livekit-test
+  annotations:
+    route.openshift.io/termination: edge
+    route.openshift.io/insecure-policy: Redirect
+    haproxy.router.openshift.io/timeout: 1h
+spec:
+  ingressClassName: openshift-default
+  rules:
+  - host: PLACEHOLDER
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: livekit-test
+            port:
+              number: 8080

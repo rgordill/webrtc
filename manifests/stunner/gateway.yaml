@@ -19,8 +19,8 @@ spec:
     - name: turn-udp
       port: 3478
       protocol: TURN-UDP
-      # Accept UDPRoutes from outside stunner-system (backendRef may point at
-      # the media namespace).
+      # Accept UDPRoutes from outside stunner-system (the LiveKit backend
+      # is in the media namespace).
       allowedRoutes:
         namespaces:
           from: All

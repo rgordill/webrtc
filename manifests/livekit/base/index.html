@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LiveKit via STUNner</title>
+<style>
+body{font:16px system-ui;max-width:960px;margin:2rem auto;padding:0 1rem;background:#101820;color:#eee}label{display:block;margin:1rem 0}input,textarea{display:block;width:100%;box-sizing:border-box;padding:.6rem}button{padding:.6rem;margin:.3rem}video{width:300px;max-width:100%;background:#000}pre{white-space:pre-wrap}#tracks{display:flex;flex-wrap:wrap;gap:1rem}
+</style>
+<h1>LiveKit via STUNner</h1>
+<p>Join two tabs with different participant tokens for the same room. Each tab publishes camera/mic and subscribes to the other. Use headphones.</p>
+<label>LiveKit signaling URL<input id="url"></label>
+<label>Room token<textarea id="token" rows="3" autocomplete="off"></textarea></label>
+<label>TURN host/IP<input id="turn" value="135.237.110.232"></label>
+<label>TURN username<input id="username" value="webrtc"></label>
+<label>TURN password<input id="password" type="password" value="webrtc"></label>
+<button id="join" disabled>Join with camera/mic</button><button id="leave" disabled>Leave</button><button id="audio">Enable audio playback</button>
+<p id="status" role="status">Loading LiveKit SDK…</p>
+<div id="tracks"></div>
+<p>Verify both publisher and subscriber selected candidate pairs in <code>chrome://webrtc-internals</code> or <code>about:webrtc</code>: local candidate type <strong>relay</strong>, protocol <strong>udp</strong>, and growing RTP bytes/frames. A connection status alone does not prove media flow.</p>
+<script type="module">
+const el = id => document.getElementById(id);
+el('url').value = `wss://${location.hostname.replace(/^livekit-test\./, 'livekit.')}`;
+let room;
+function removeTracks() { el('tracks').replaceChildren(); }
+function attach(track, local = false) {
+  const media = track.attach();
+  media.autoplay = true; media.playsInline = true;
+  if (local) media.muted = true;
+  el('tracks').append(media);
+  media.play()?.catch(() => { el('status').textContent = 'Click Enable audio playback to allow playback.'; });
+}
+try {
+  const { Room, RoomEvent } = await import('https://cdn.jsdelivr.net/npm/livekit-client@2.23.0/dist/livekit-client.esm.mjs');
+  el('join').disabled = false;
+  el('status').textContent = 'Ready. TURN/UDP relay policy is enforced for every connection.';
+  el('join').onclick = async () => {
+    el('join').disabled = true;
+    try {
+      room = new Room();
+      room.on(RoomEvent.TrackSubscribed, track => attach(track));
+      room.on(RoomEvent.TrackUnsubscribed, track => track.detach().forEach(node => node.remove()));
+      room.on(RoomEvent.Disconnected, () => { removeTracks(); el('status').textContent = 'Disconnected'; el('join').disabled = false; el('leave').disabled = true; });
+      room.on(RoomEvent.AudioPlaybackStatusChanged, () => { if (!room.canPlaybackAudio) el('status').textContent = 'Click Enable audio playback.'; });
+      await room.connect(el('url').value.trim(), el('token').value.trim(), {
+        autoSubscribe: true,
+        rtcConfig: {
+          iceTransportPolicy: 'relay',
+          iceServers: [{ urls: `turn:${el('turn').value.trim()}:3478?transport=udp`, username: el('username').value, credential: el('password').value }]
+        }
+      });
+      el('leave').disabled = false;
+      await room.localParticipant.enableCameraAndMicrophone();
+      room.localParticipant.videoTrackPublications.forEach(pub => { if (pub.track) attach(pub.track, true); });
+      el('status').textContent = `Connected as ${room.localParticipant.identity} in ${room.name}. Relay-only TURN/UDP; verify RTP counters in browser WebRTC diagnostics.`;
+    } catch (error) {
+      await room?.disconnect();
+      el('status').textContent = error.message;
+      el('join').disabled = false;
+    }
+  };
+  el('leave').onclick = () => room?.disconnect();
+  el('audio').onclick = () => room?.startAudio();
+  window.addEventListener('pagehide', () => room?.disconnect());
+} catch (error) { el('status').textContent = `SDK failed to load: ${error.message}`; }
+</script>
+</html>

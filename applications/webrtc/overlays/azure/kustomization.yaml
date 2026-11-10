@@ -5,4 +5,5 @@ resources:
   - ../../cluster-config
   - ../../helm
   - ../../video-server
+  - ../../livekit
   - ../../stunner-config
