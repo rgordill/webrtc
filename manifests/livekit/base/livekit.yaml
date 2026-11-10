@@ -1,6 +1,8 @@
 port: 7880
 bind_addresses: ["0.0.0.0"]
 key_file: /etc/livekit/keys/keys.yaml
+redis:
+  address: livekit-redis.media.svc.cluster.local:6379
 rtc:
   # Advertise the pod IP: STUNner can reach it inside the cluster.
   use_external_ip: false

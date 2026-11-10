@@ -17,6 +17,7 @@ sub.add_parser('bootstrap', help='Create secret only if absent; never rotate exi
 token = sub.add_parser('token')
 token.add_argument('--room', required=True)
 token.add_argument('--identity', required=True)
+token.add_argument('--viewer', action='store_true', help='Subscribe-only token; cannot publish camera/mic')
 args = parser.parse_args()
 kubectl = ['kubectl'] + (['--kubeconfig', args.kubeconfig] if args.kubeconfig else [])
 
@@ -38,7 +39,7 @@ else:
     data = json.loads(run(['-n', args.namespace, 'get', 'secret', 'livekit-keys', '-o', 'json']))
     key, secret = base64.b64decode(data['data']['keys.yaml']).decode().strip().split(':', 1)
     now = int(time.time())
-    payload = {'iss': key, 'sub': args.identity, 'nbf': now - 5, 'exp': now + 3600, 'video': {'roomJoin': True, 'room': args.room, 'canPublish': True, 'canSubscribe': True}}
+    payload = {'iss': key, 'sub': args.identity, 'nbf': now - 5, 'exp': now + 3600, 'video': {'roomJoin': True, 'room': args.room, 'canPublish': not args.viewer, 'canSubscribe': True, 'canPublishData': not args.viewer}}
     def encode(value):
         return base64.urlsafe_b64encode(value).decode().rstrip('=')
     unsigned = '.'.join(encode(json.dumps(obj, separators=(',', ':')).encode()) for obj in [{'alg': 'HS256', 'typ': 'JWT'}, payload])

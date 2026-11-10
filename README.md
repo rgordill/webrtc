@@ -15,7 +15,10 @@ Licensed under the [Apache License 2.0](LICENSE).
 The WebRTC path is browser → STUNner TURN/UDP → LiveKit pod media (UDP 7882).
 Signaling uses WSS through the OpenShift ingress. The existing nginx/ffmpeg
 HLS player remains available independently: HTTP HLS traffic does not traverse TURN.
-This uses TURN relay, rather than STUN-only NAT discovery.
+The provided file is also published into LiveKit room `video-stream` using only
+internal Services: nginx HLS → LiveKit Ingress → LiveKit. External viewers then
+receive WebRTC through STUNner TURN/UDP. This uses TURN relay, rather than
+STUN-only NAT discovery.
 
 ## Library structure
 
@@ -204,14 +207,123 @@ For this lab's private certificate only, add `--allow-private-ca`. This accepts
 certificate errors in the temporary test browser; normal clients still need
 proper CA trust. Test tokens are fetched via the local helper and never logged.
 
-### Optional file publishing
+## Watch the provided video in LiveKit
 
-The existing `/media/video.webm` remains an HLS source only. Publishing that file
-into the LiveKit room requires an additional LiveKit Ingress deployment with
-Redis and WHIP/RTMP configuration; it is not included in this single-node slice.
-The camera/mic call above is the full TURN A/V loop implemented here.
+The Azure deployment continuously publishes the existing file into room
+**`video-stream`**, as participant **`video-source`**, displayed as **Provided video**.
+The file loops in the existing ffmpeg deployment. New viewers join the current
+stream position; this is a shared live broadcast, not independent on-demand playback.
 
-Sources: [STUNner LiveKit example](https://github.com/l7mp/stunner/tree/main/docs/examples/livekit),
+Internal connections (no external DNS, public ingress, or TURN required for the publisher):
+
+```text
+video-server.media.svc.cluster.local:8080/hls/index.m3u8
+  → LiveKit Ingress (HTTP HLS fetch + transcoding)
+  → livekit-server.media.svc.cluster.local:7880 (WS signaling)
+  → LiveKit pod UDP media
+
+LiveKit → STUNner 135.237.110.232:3478 → TURN/UDP → viewers
+```
+
+`livekit-redis` provides the internal control bus for the SFU and Ingress.
+`livekit-stream` maintains exactly one URL ingress for its configured identity,
+recreating it after a completed/failed source. Source HTTP, signaling and Redis
+all use internal ClusterIP Services. Ingress joins using direct pod networking;
+viewer transport is determined by the viewer's ICE configuration.
+No public RTMP/WHIP endpoint, extra LoadBalancer or second PVC mount is used.
+
+### Watch without camera/microphone
+
+From this repository with your admin kubeconfig:
+
+```bash
+export KUBECONFIG=~/PoC/azure/demo/auth/kubeconfig
+python3 scripts/livekit-token.py token --room video-stream --identity viewer-alice --viewer
+```
+
+1. Open https://livekit-test.apps.demo.p225x.azure.redhatworkshops.io/ .
+2. Paste that token into **Room token**. Keep the default signaling and TURN fields.
+3. Click **Watch room**, then **Enable audio playback** if needed.
+4. The video track is the **Provided video** publisher's stream. This viewer
+   forces relay-only TURN/UDP and does not request camera/microphone access.
+
+Generate a different token with a unique identity for each viewer; reusing an
+identity disconnects the earlier connection. Tokens expire after one hour for
+new connections. Do not share your API signing Secret or kubeconfig with viewers.
+They only need their room token, URLs, and browser CA trust.
+
+### Invite people using LiveKit Meet
+
+Generate a regular participant token for each person (omit `--viewer` so they
+can use camera/mic and chat in Meet):
+
+```bash
+python3 scripts/livekit-token.py token --room video-stream --identity guest-bob
+python3 scripts/livekit-token.py token --room video-stream --identity guest-carol
+```
+
+Send each person their individual token and these instructions:
+
+1. Trust the lab's ingress CA on their device first (see TLS instructions below).
+2. Open [LiveKit Meet → Custom](https://meet.livekit.io/?tab=custom).
+3. Enter **LiveKit URL**: `wss://livekit.apps.demo.p225x.azure.redhatworkshops.io`.
+4. Enter their token in **Token**, then connect. The token selects `video-stream`;
+   no LiveKit Cloud account/API key or separate room-name field is needed.
+5. Locate **Provided video** in the room. Guests can enable their own mic/camera
+   to speak with other participants; use headphones to avoid feedback.
+
+The SFU advertises STUNner as a TURN/UDP server to Meet. Meet's hosted UI does
+not expose an explicit relay-only policy switch; use the test client for a
+strict forced-TURN test. Inspect the actual selected candidates in browser
+WebRTC diagnostics when using Meet, especially if a viewer can reach cluster
+pod addresses through a VPN. ICE may choose a direct path when one is reachable.
+
+To change the source URL or room, edit `manifests/livekit/base/stream.env` and
+sync `webrtc-livekit`; for a different room also update the test-page hint.
+The manager owns only ingresses with its name/identity in that configured room;
+remove the old ingress before changing rooms/identities. Scaling its Deployment
+to zero alone does not terminate an already-running ingress. To stop the stream,
+scale the manager to zero and delete its ingress using the LiveKit Ingress API.
+
+### Trust the OpenShift router CA
+
+The Azure lab currently uses the default private OpenShift ingress CA. Export
+its **public certificate** using your admin kubeconfig:
+
+```bash
+kubectl -n openshift-ingress-operator get secret router-ca \
+  -o jsonpath='{.data.tls\.crt}' | base64 -d > /tmp/webrtc-router-ca.crt
+```
+
+Import that certificate as a trusted authority for websites into each viewer's
+browser/OS trust store (Firefox: Settings → Privacy & Security → Certificates →
+View Certificates → Authorities → Import). Chromium follows the platform's
+certificate manager. Restart the browser if needed, then verify these pages open
+without certificate warnings before connecting from Meet:
+
+- https://livekit.apps.demo.p225x.azure.redhatworkshops.io/ (plain `OK` response)
+- https://livekit-test.apps.demo.p225x.azure.redhatworkshops.io/
+
+Only distribute this public CA certificate, never the Secret's private key.
+For guests outside the lab, a publicly trusted wildcard ingress certificate is
+preferable to installing the private CA on every device.
+
+### Streaming health
+
+```bash
+kubectl -n media get deploy livekit-server livekit-redis livekit-ingress livekit-stream
+kubectl -n media logs deploy/livekit-stream --tail=10
+kubectl -n media logs deploy/livekit-ingress --tail=30
+```
+
+Expect `ENDPOINT_PUBLISHING` in manager logs and both audio/video tracks in the
+room. Verify browser inbound RTP bytes and decoded video frames increase over
+time, with a relay/UDP selected candidate. HLS input adds segment buffering
+latency; the LiveKit output is WebRTC but does not remove that input latency.
+
+Sources: [LiveKit URL ingress](https://docs.livekit.io/transport/media/ingress-egress/ingress/),
+[Self-hosted Ingress](https://docs.livekit.io/transport/self-hosting/ingress/),
+[STUNner LiveKit example](https://github.com/l7mp/stunner/tree/main/docs/examples/livekit),
 [LiveKit server configuration](https://github.com/livekit/livekit/blob/v1.13.11/config-sample.yaml),
 [JavaScript connection options](https://github.com/livekit/client-sdk-js/blob/v2.23.0/src/options.ts).
 
@@ -221,8 +333,10 @@ Sources: [STUNner LiveKit example](https://github.com/l7mp/stunner/tree/main/doc
 * Prefer Ingress (`openshift-default`) over OpenShift Route objects.
 * Pin `targetRevision` to a commit/tag in production instead of `HEAD`.
 * Rotate static TURN credentials or switch `authType` to ephemeral.
-* LiveKit is a single-replica PoC without Redis, persistence, or HA; Recreate
-  rollouts interrupt active calls. Add Redis and a distributed design before scaling.
+* LiveKit, Ingress and Redis are single-replica PoC services. Redis is ephemeral
+  and unauthenticated inside the cluster; add authentication, persistence and
+  network isolation for production. Recreate rollouts interrupt active calls.
+  The stream manager recreates its URL ingress after Redis loss.
 * API signing keys live only in `media/livekit-keys`; restrict access to that
   Secret. A production token service must authenticate users before issuing tokens.
 * LiveKit may warn about the node UDP receive buffer. Tune node socket buffers

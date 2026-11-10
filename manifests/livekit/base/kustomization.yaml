@@ -5,6 +5,7 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
+  - streaming.yaml
 configMapGenerator:
   - name: livekit-config
     files:
@@ -13,3 +14,12 @@ configMapGenerator:
     files:
       - index.html
       - default.conf
+  - name: livekit-ingress-config
+    files:
+      - ingress.yaml.conf
+  - name: livekit-stream-config
+    envs:
+      - stream.env
+  - name: livekit-stream-code
+    files:
+      - publish-stream.py

@@ -1,0 +1,228 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: livekit-redis
+  annotations:
+    argocd.argoproj.io/sync-wave: '-1'
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: livekit-redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: livekit-redis
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: redis
+        image: docker.io/library/redis:7.4.7-alpine
+        command:
+        - redis-server
+        - --save
+        - ''
+        - --appendonly
+        - 'no'
+        - --protected-mode
+        - 'no'
+        ports:
+        - name: redis
+          containerPort: 6379
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: data
+        emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: livekit-ingress
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: livekit-ingress
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: livekit-ingress
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: ingress
+        image: docker.io/livekit/ingress:v1.6.0
+        command:
+        - /bin/sh
+        - -ec
+        args:
+        - '# Reuse the existing signing keys without storing another copy in Git.
+
+          export LIVEKIT_API_KEY="$(cut -d: -f1 /etc/livekit/keys/keys.yaml)"
+
+          export LIVEKIT_API_SECRET="$(sed ''s/^[^:]*: *//'' /etc/livekit/keys/keys.yaml)"
+
+          exec ingress --config /etc/ingress/ingress.yaml
+
+          '
+        env:
+        - name: HOME
+          value: /tmp
+        - name: GST_REGISTRY
+          value: /tmp/gst-registry.bin
+        ports:
+        - name: health
+          containerPort: 8081
+        readinessProbe:
+          httpGet:
+            path: /
+            port: health
+          initialDelaySeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: health
+          initialDelaySeconds: 30
+        resources:
+          requests:
+            cpu: '2'
+            memory: 1Gi
+          limits:
+            cpu: '4'
+            memory: 4Gi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/ingress/ingress.yaml
+          subPath: ingress.yaml.conf
+          readOnly: true
+        - name: keys
+          mountPath: /etc/livekit/keys
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: config
+        configMap:
+          name: livekit-ingress-config
+      - name: keys
+        secret:
+          secretName: livekit-keys
+          defaultMode: 288
+          items:
+          - key: keys.yaml
+            path: keys.yaml
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: livekit-stream
+  annotations:
+    argocd.argoproj.io/sync-wave: '1'
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: livekit-stream
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: livekit-stream
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: stream
+        image: docker.io/library/python:3.12.12-alpine
+        command:
+        - python3
+        - -u
+        - /app/publish-stream.py
+        envFrom:
+        - configMapRef:
+            name: livekit-stream-config
+        resources:
+          requests:
+            cpu: 25m
+            memory: 32Mi
+          limits:
+            cpu: 250m
+            memory: 128Mi
+        volumeMounts:
+        - name: code
+          mountPath: /app
+          readOnly: true
+        - name: keys
+          mountPath: /etc/livekit/keys
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: code
+        configMap:
+          name: livekit-stream-code
+      - name: keys
+        secret:
+          secretName: livekit-keys
+          defaultMode: 288
+          items:
+          - key: keys.yaml
+            path: keys.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: livekit-redis
+  annotations:
+    argocd.argoproj.io/sync-wave: '-1'
+spec:
+  selector:
+    app.kubernetes.io/name: livekit-redis
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: redis
