@@ -86,3 +86,9 @@ subprocess.run(['helm', 'upgrade', '--install', 'webrtc-envoy',
     'oci://docker.io/envoyproxy/gateway-helm', '--version', envoy_gateway,
     '--namespace', 'envoy-gateway-system', '--create-namespace', '--kubeconfig', args.kubeconfig,
     '-f', str(root / 'manifests/envoy-operator/values.yaml'), '--wait', '--timeout', '5m'], check=True)
+
+namespace = json.loads(subprocess.check_output(kubectl + ['get', 'namespace', 'media', '-o', 'json']))
+uid = namespace['metadata']['annotations']['openshift.io/sa.scc.uid-range'].split('/')[0]
+subprocess.run(kubectl + ['-n', 'openshift-gitops', 'annotate', 'secret',
+    'openshift-gitops-cluster-configuration', 'media-uid=' + uid, '--overwrite'], check=True)
+print('Published media SCC UID for namespace-safe Envoy containers:', uid)
