@@ -115,3 +115,4 @@ spec:
           name: video-player
   strategy:
     type: Recreate
+    rollingUpdate: null
