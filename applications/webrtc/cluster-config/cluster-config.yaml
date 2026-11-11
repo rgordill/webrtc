@@ -11,7 +11,7 @@ spec:
     namespace: openshift-gitops
   source:
     repoURL: https://github.com/rgordill/webrtc.git
-    targetRevision: HEAD
+    targetRevision: codex/stunner-implementation
     path: manifests/cluster-config
   syncPolicy:
     automated:

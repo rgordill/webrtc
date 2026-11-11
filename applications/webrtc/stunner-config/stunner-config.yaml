@@ -11,7 +11,7 @@ spec:
     namespace: stunner-system
   source:
     repoURL: https://github.com/rgordill/webrtc.git
-    targetRevision: HEAD
+    targetRevision: codex/stunner-implementation
     path: manifests/stunner
   syncPolicy:
     automated:

@@ -22,7 +22,7 @@ spec:
       project: default
       source:
         repoURL: https://github.com/rgordill/webrtc.git
-        targetRevision: HEAD
+        targetRevision: codex/stunner-implementation
         path: manifests/video-server/base
         kustomize:
           patches:

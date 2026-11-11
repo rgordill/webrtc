@@ -1,3 +1,6 @@
+> Preserved STUNner implementation. Argo CD sources on this branch track
+> `codex/stunner-implementation`; `main` uses Envoy Gateway and LiveKit TURN.
+
 # WebRTC PoC — LiveKit A/V through STUNner TURN (Azure OpenShift)
 
 GitOps library managed with Argo CD, following the
