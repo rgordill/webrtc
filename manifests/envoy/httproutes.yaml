@@ -1,0 +1,47 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: livekit-server
+  namespace: media
+spec:
+  parentRefs:
+  - name: webrtc-envoy
+    sectionName: http
+  hostnames:
+  - PLACEHOLDER
+  rules:
+  - backendRefs:
+    - name: livekit-server
+      port: 7880
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: livekit-test
+  namespace: media
+spec:
+  parentRefs:
+  - name: webrtc-envoy
+    sectionName: http
+  hostnames:
+  - PLACEHOLDER
+  rules:
+  - backendRefs:
+    - name: livekit-test
+      port: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: video-server
+  namespace: media
+spec:
+  parentRefs:
+  - name: webrtc-envoy
+    sectionName: http
+  hostnames:
+  - PLACEHOLDER
+  rules:
+  - backendRefs:
+    - name: video-server
+      port: 8080

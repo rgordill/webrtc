@@ -1,17 +1,15 @@
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LiveKit via STUNner</title>
+<title>LiveKit via Envoy</title>
 <style>
 body{font:16px system-ui;max-width:960px;margin:2rem auto;padding:0 1rem;background:#101820;color:#eee}label{display:block;margin:1rem 0}input,textarea{display:block;width:100%;box-sizing:border-box;padding:.6rem}button{padding:.6rem;margin:.3rem}video{width:300px;max-width:100%;background:#000}pre{white-space:pre-wrap}#tracks{display:flex;flex-wrap:wrap;gap:1rem}
 </style>
-<h1>LiveKit via STUNner</h1>
+<h1>LiveKit via Envoy</h1>
 <p>The provided video is streaming in room <strong>video-stream</strong>. Paste a token for that room and click Watch room. Each viewer needs a different participant identity. Use headphones when joining with camera/mic.</p>
 <label>LiveKit signaling URL<input id="url"></label>
 <label>Room token<textarea id="token" rows="3" autocomplete="off"></textarea></label>
-<label>TURN host/IP<input id="turn" value="135.237.110.232"></label>
-<label>TURN username<input id="username" value="webrtc"></label>
-<label>TURN password<input id="password" type="password" value="webrtc"></label>
+<p>TURN/UDP configuration and credentials are supplied by LiveKit signaling through Envoy.</p>
 <button id="watch" disabled>Watch room</button><button id="join" disabled>Join with camera/mic</button><button id="leave" disabled>Leave</button><button id="audio">Enable audio playback</button>
 <p id="status" role="status">Loading LiveKit SDK…</p>
 <div id="tracks"></div>
@@ -47,8 +45,7 @@ try {
       await room.connect(el('url').value.trim(), el('token').value.trim(), {
         autoSubscribe: true,
         rtcConfig: {
-          iceTransportPolicy: 'relay',
-          iceServers: [{ urls: `turn:${el('turn').value.trim()}:3478?transport=udp`, username: el('username').value, credential: el('password').value }]
+          iceTransportPolicy: 'relay'
         }
       });
       el('leave').disabled = false;

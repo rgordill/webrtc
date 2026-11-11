@@ -31,8 +31,11 @@ spec:
         - name: rtc-udp
           containerPort: 7882
           protocol: UDP
+        - name: turn-udp
+          containerPort: 3478
+          protocol: UDP
         volumeMounts:
-        - name: config
+        - name: runtime
           mountPath: /etc/livekit/livekit.yaml
           subPath: livekit.yaml
           readOnly: true
@@ -71,6 +74,51 @@ spec:
           items:
           - key: keys.yaml
             path: keys.yaml
+      - name: runtime
+        emptyDir: {}
+      - name: turn-init
+        configMap:
+          name: livekit-turn-init
+      initContainers:
+      - name: prepare-turn
+        image: docker.io/library/python:3.12.12-alpine
+        command:
+        - python3
+        - /app/prepare-turn.py
+        env:
+        - name: PUBLIC_TURN_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: livekit-public-endpoint
+              key: host
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        volumeMounts:
+        - name: config
+          mountPath: /template
+          readOnly: true
+        - name: keys
+          mountPath: /etc/livekit/keys
+          readOnly: true
+        - name: runtime
+          mountPath: /runtime
+        - name: turn-init
+          mountPath: /app
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 25m
+            memory: 32Mi
+          limits:
+            cpu: 250m
+            memory: 128Mi
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -1,4 +1,4 @@
-# One-time admin bootstrap: workload reconciliation, no API-key Secret access.
+# Admin bootstrap for the Envoy/LiveKit GitOps slice; no Secret access.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -54,37 +54,13 @@ rules:
   - update
   - patch
   - delete
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: webrtc-gitops-reconciler
-  namespace: media
-subjects:
-- kind: ServiceAccount
-  name: openshift-gitops-argocd-application-controller
-  namespace: openshift-gitops
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: webrtc-gitops-reconciler
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: stunner-system
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: webrtc-gitops-reconciler
-  namespace: stunner-system
-rules:
 - apiGroups:
   - gateway.networking.k8s.io
   resources:
   - gateways
-  verbs: &id001
+  - httproutes
+  - udproutes
+  verbs:
   - get
   - list
   - watch
@@ -93,17 +69,23 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - stunner.l7mp.io
+  - gateway.envoyproxy.io
   resources:
-  - gatewayconfigs
-  - udproutes
-  verbs: *id001
+  - envoyproxies
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: webrtc-gitops-reconciler
-  namespace: stunner-system
+  namespace: media
 subjects:
 - kind: ServiceAccount
   name: openshift-gitops-argocd-application-controller
@@ -129,7 +111,7 @@ rules:
   resources:
   - gatewayclasses
   resourceNames:
-  - stunner-gatewayclass
+  - webrtc-envoy
   verbs:
   - get
   - update

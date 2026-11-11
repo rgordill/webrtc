@@ -1,0 +1,34 @@
+crds:
+  enabled: false
+config:
+  envoyGateway:
+    gateway:
+      controllerName: gateway.envoyproxy.io/gatewayclass-controller
+    provider:
+      type: Kubernetes
+      kubernetes:
+        deploy:
+          type: GatewayNamespace
+    logging:
+      level:
+        default: info
+deployment:
+  envoyGateway:
+    securityContext:
+      runAsUser: null
+      runAsGroup: null
+  pod:
+    securityContext:
+      runAsUser: null
+      runAsGroup: null
+      fsGroup: null
+certgen:
+  job:
+    pod:
+      securityContext:
+        runAsUser: null
+        runAsGroup: null
+        fsGroup: null
+    securityContext:
+      runAsUser: null
+      runAsGroup: null

@@ -7,6 +7,7 @@ resources:
   - certificate.yaml
   - ingress.yaml
   - streaming.yaml
+  - ../../envoy
 configMapGenerator:
   - name: livekit-config
     files:
@@ -24,3 +25,6 @@ configMapGenerator:
   - name: livekit-stream-code
     files:
       - publish-stream.py
+  - name: livekit-turn-init
+    files:
+      - prepare-turn.py

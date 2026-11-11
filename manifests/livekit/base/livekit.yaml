@@ -4,16 +4,24 @@ key_file: /etc/livekit/keys/keys.yaml
 redis:
   address: livekit-redis.media.svc.cluster.local:6379
 rtc:
-  # Advertise the pod IP: STUNner can reach it inside the cluster.
   use_external_ip: false
   udp_port: 7882
   tcp_port: 0
-  # Supplied to clients by signaling; the test client also sets relay policy.
+  # LiveKit's native TURN advertisement uses its private node IP. Add a public
+  # Envoy alias authenticated by the same embedded TURN server (not external TURN).
   turn_servers:
-    - host: 135.237.110.232
+    - host: PUBLIC_TURN_HOST_PLACEHOLDER
       port: 3478
       protocol: udp
-      username: webrtc
-      credential: webrtc
+      username: TURN_USERNAME_PLACEHOLDER
+      credential: TURN_PASSWORD_PLACEHOLDER
 turn:
-  enabled: false
+  enabled: true
+  udp_port: 3478
+  relay_range_start: 40000
+  relay_range_end: 40511
+  # The alias is shared by this small single-node demo. Bound its allocations.
+  per_user_relay_allocation_limit: 128
+  # Embedded TURN also enforces local-node/media-port restrictions.
+  allow_restricted_peer_cidrs:
+    - POD_CIDR_PLACEHOLDER

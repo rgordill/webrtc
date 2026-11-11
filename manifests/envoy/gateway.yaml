@@ -1,0 +1,82 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: webrtc-envoy
+  namespace: media
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        name: webrtc-envoy
+        type: LoadBalancer
+        externalTrafficPolicy: Local
+      envoyDeployment:
+        name: webrtc-envoy
+        replicas: 1
+        pod:
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+        container:
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            seccompProfile:
+              type: RuntimeDefault
+        patch:
+          type: JSONPatch
+          value:
+          - op: remove
+            path: /spec/template/spec/containers/0/securityContext/runAsUser
+          - op: remove
+            path: /spec/template/spec/containers/0/securityContext/runAsGroup
+          - op: remove
+            path: /spec/template/spec/containers/1/securityContext/runAsUser
+          - op: remove
+            path: /spec/template/spec/containers/1/securityContext/runAsGroup
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: webrtc-envoy
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  parametersRef:
+    group: gateway.envoyproxy.io
+    kind: EnvoyProxy
+    name: webrtc-envoy
+    namespace: media
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: webrtc-envoy
+  namespace: media
+spec:
+  gatewayClassName: webrtc-envoy
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 8080
+  - name: turn-udp
+    protocol: UDP
+    port: 3478
+---
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: UDPRoute
+metadata:
+  name: livekit-turn
+  namespace: media
+spec:
+  parentRefs:
+  - name: webrtc-envoy
+    sectionName: turn-udp
+  rules:
+  - backendRefs:
+    - name: livekit-server
+      port: 3478

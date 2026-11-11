@@ -56,6 +56,27 @@ spec:
                 - op: replace
                   path: /spec/dnsNames/1
                   value: "livekit-test.{{ index .metadata.annotations "ingress-domain" }}"
+            - target:
+                kind: HTTPRoute
+                name: livekit-server
+              patch: |-
+                - op: replace
+                  path: /spec/hostnames/0
+                  value: "livekit.{{ index .metadata.annotations "ingress-domain" }}"
+            - target:
+                kind: HTTPRoute
+                name: livekit-test
+              patch: |-
+                - op: replace
+                  path: /spec/hostnames/0
+                  value: "livekit-test.{{ index .metadata.annotations "ingress-domain" }}"
+            - target:
+                kind: HTTPRoute
+                name: video-server
+              patch: |-
+                - op: replace
+                  path: /spec/hostnames/0
+                  value: "video-server.{{ index .metadata.annotations "ingress-domain" }}"
       destination:
         server: "{{.server}}"
         namespace: media

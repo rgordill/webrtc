@@ -22,6 +22,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: video-server
+                name: webrtc-envoy
                 port:
                   number: 8080

@@ -13,6 +13,10 @@ spec:
     port: 7882
     targetPort: rtc-udp
     protocol: UDP
+  - name: turn-udp
+    port: 3478
+    targetPort: turn-udp
+    protocol: UDP
 ---
 apiVersion: v1
 kind: Service

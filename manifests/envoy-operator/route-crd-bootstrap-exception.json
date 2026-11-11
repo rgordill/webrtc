@@ -1,0 +1,10 @@
+[
+  {
+    "op": "add",
+    "path": "/spec/matchConditions/-",
+    "value": {
+      "name": "webrtc-bootstrap-missing-route-crds",
+      "expression": "!(request.operation == 'CREATE' && object.metadata.name in ['tcproutes.gateway.networking.k8s.io', 'udproutes.gateway.networking.k8s.io'])"
+    }
+  }
+]

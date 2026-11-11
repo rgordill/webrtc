@@ -16,9 +16,9 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: livekit-server
+            name: webrtc-envoy
             port:
-              number: 7880
+              number: 8080
   tls:
   - hosts:
     - PLACEHOLDER
@@ -42,7 +42,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: livekit-test
+            name: webrtc-envoy
             port:
               number: 8080
   tls:
