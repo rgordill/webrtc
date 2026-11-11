@@ -7,12 +7,21 @@ spec:
   parentRefs:
   - name: webrtc-envoy
     sectionName: http
+    group: gateway.networking.k8s.io
+    kind: Gateway
   hostnames:
   - PLACEHOLDER
   rules:
   - backendRefs:
     - name: livekit-server
       port: 7880
+      group: ''
+      kind: Service
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -23,12 +32,21 @@ spec:
   parentRefs:
   - name: webrtc-envoy
     sectionName: http
+    group: gateway.networking.k8s.io
+    kind: Gateway
   hostnames:
   - PLACEHOLDER
   rules:
   - backendRefs:
     - name: livekit-test
       port: 8080
+      group: ''
+      kind: Service
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -39,9 +57,18 @@ spec:
   parentRefs:
   - name: webrtc-envoy
     sectionName: http
+    group: gateway.networking.k8s.io
+    kind: Gateway
   hostnames:
   - PLACEHOLDER
   rules:
   - backendRefs:
     - name: video-server
       port: 8080
+      group: ''
+      kind: Service
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /

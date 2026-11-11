@@ -229,7 +229,8 @@ Chromium installed):
 ```bash
 python3 scripts/verify-stream.py --kubeconfig "$KUBECONFIG" \
   --url https://livekit-test.apps.demo.p225x.azure.redhatworkshops.io/ \
-  --server-url wss://livekit.apps.demo.p225x.azure.redhatworkshops.io
+  --server-url wss://livekit.apps.demo.p225x.azure.redhatworkshops.io \
+  --expected-turn-host "$(kubectl -n media get cm livekit-public-endpoint -o jsonpath='{.data.host}')"
 ```
 
 Run without `--allow-private-ca` to check the labmad trust chain as well.
@@ -250,7 +251,8 @@ kubectl -n media logs deploy/livekit-server --tail=20
 kubectl -n media logs deploy/livekit-stream --tail=10
 python3 scripts/verify-stream.py --kubeconfig "$KUBECONFIG" \
   --url https://livekit-test.apps.demo.p225x.azure.redhatworkshops.io/ \
-  --server-url wss://livekit.apps.demo.p225x.azure.redhatworkshops.io
+  --server-url wss://livekit.apps.demo.p225x.azure.redhatworkshops.io \
+  --expected-turn-host "$(kubectl -n media get cm livekit-public-endpoint -o jsonpath='{.data.host}')"
 ```
 
 The browser check verifies that both the relay-only player and hosted Meet receive

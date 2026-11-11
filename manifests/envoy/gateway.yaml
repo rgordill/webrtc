@@ -78,7 +78,12 @@ spec:
   parentRefs:
   - name: webrtc-envoy
     sectionName: turn-udp
+    group: gateway.networking.k8s.io
+    kind: Gateway
   rules:
   - backendRefs:
     - name: livekit-server
       port: 3478
+      group: ''
+      kind: Service
+      weight: 1

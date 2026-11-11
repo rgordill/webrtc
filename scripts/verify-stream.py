@@ -5,12 +5,14 @@ import asyncio
 import json
 from pathlib import Path
 import subprocess
+from urllib.parse import urlsplit
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--kubeconfig', required=True)
 parser.add_argument('--url', required=True, help='HTTPS URL of the livekit-test page')
 parser.add_argument('--server-url', required=True, help='Public LiveKit WSS URL')
 parser.add_argument('--room', default='video-stream')
+parser.add_argument('--expected-turn-host', help='Require selected relay candidates to use this public TURN host')
 parser.add_argument('--allow-private-ca', action='store_true')
 args = parser.parse_args()
 from playwright.async_api import async_playwright
@@ -45,6 +47,8 @@ async def main():
    active=[pc for pc in last if pc['state']=='connected']
    assert active, name
    assert all(pair['local']=='relay' and pair['protocol']=='udp' for pc in active for pair in pc['pairs']), name
+   if args.expected_turn_host:
+    assert all(urlsplit(pair['turn'].replace('turn:', 'turn://', 1)).hostname==args.expected_turn_host for pc in active for pair in pc['pairs']), (name,'unexpected TURN host')
    for kind in ['audio','video']:
     def count(pcs, field):return sum((r.get(field) or 0) for pc in pcs for r in pc['rtp'] if r['kind']==kind)
     assert count(last,'bytes')>count(first,'bytes'), (name,kind)
