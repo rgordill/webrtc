@@ -1,0 +1,28 @@
+# Admin-owned, versioned bootstrap policy. No application RBAC grants for EnvoyPatchPolicy.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyPatchPolicy
+metadata:
+  name: webrtc-turn-datagrams
+  namespace: media
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: webrtc-envoy
+  type: JSONPatch
+  jsonPatches:
+    - type: type.googleapis.com/envoy.config.listener.v3.Listener
+      name: media/webrtc-envoy/turn-udp
+      operation:
+        op: add
+        path: /udp_listener_config
+        value:
+          downstream_socket_config:
+            max_rx_datagram_size: 65535
+    - type: type.googleapis.com/envoy.config.listener.v3.Listener
+      name: media/webrtc-envoy/turn-udp
+      operation:
+        op: add
+        path: /listener_filters/0/typed_config/upstream_socket_config
+        value:
+          max_rx_datagram_size: 65535

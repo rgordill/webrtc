@@ -7,16 +7,14 @@ metadata:
     app.kubernetes.io/name: video-server
     app.kubernetes.io/component: media
 spec:
-  # single replica: the HLS playlist is pod-local state in the shared
-  # emptyDir. Scale out only together with a shared RWX volume + segmenter
-  # affinity (STUNner's session sticky routing), otherwise browsers land on
-  # pods with empty local playlists.
   replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: video-server
   template:
     metadata:
+      annotations:
+        webrtc.example/hls-profile: realtime
       labels:
         app.kubernetes.io/name: video-server
     spec:
@@ -25,97 +23,95 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: ffmpeg
-          image: docker.io/jrottenberg/ffmpeg:7-ubuntu
-          imagePullPolicy: IfNotPresent
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-          command: ["/bin/sh", "-ec"]
-          args:
-            - |
-              until [ -f "/media/${VIDEO_FILE}" ]; do
-                echo "waiting for /media/${VIDEO_FILE} ..." >&2
-                sleep 5
-              done
-              echo "video found, starting HLS stream" >&2
-              # shellcheck disable=SC2086
-              exec ffmpeg ${FFMPEG_ARGS:?FFMPEG_ARGS unset}
-          env:
-            - name: VIDEO_FILE
-              valueFrom:
-                configMapKeyRef:
-                  name: video-server-config
-                  key: video-file
-            - name: FFMPEG_ARGS
-              valueFrom:
-                configMapKeyRef:
-                  name: video-server-config
-                  key: ffmpeg-args
-          volumeMounts:
-            - name: video
-              mountPath: /media
-              readOnly: true
-            - name: hls
-              mountPath: /hls
-          resources:
-            requests:
-              cpu: "2"
-              memory: 1Gi
-            limits:
-              # vp9→h264 transcode of ~1GiB sources needs headroom beyond
-              # the input size; 1Gi was OOMKilled on the sample webm.
-              cpu: "4"
-              memory: 4Gi
-        - name: nginx
-          image: docker.io/nginxinc/nginx-unprivileged:1.27-alpine
-          imagePullPolicy: IfNotPresent
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-          ports:
-            - name: http
-              containerPort: 8080
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 3
-            periodSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          volumeMounts:
-            - name: nginx-conf
-              mountPath: /etc/nginx/conf.d/default.conf
-              subPath: default.conf
-            - name: hls
-              mountPath: /usr/share/nginx/html/hls
-            - name: player
-              mountPath: /usr/share/nginx/html/player
-          resources:
-            requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
-              cpu: 500m
-              memory: 256Mi
-      volumes:
-        - name: hls
-          emptyDir: {}
+      - name: ffmpeg
+        image: docker.io/jrottenberg/ffmpeg:7-ubuntu
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        command:
+        - /bin/sh
+        - -ec
+        args:
+        - "until [ -f \"/media/${VIDEO_FILE}\" ]; do\n  echo \"waiting for /media/${VIDEO_FILE}\
+          \ ...\" >&2\n  sleep 5\ndone\necho \"video found, starting HLS stream\"\
+          \ >&2\n# shellcheck disable=SC2086\nexec ffmpeg ${FFMPEG_ARGS:?FFMPEG_ARGS\
+          \ unset}\n"
+        env:
+        - name: VIDEO_FILE
+          valueFrom:
+            configMapKeyRef:
+              name: video-server-config
+              key: video-file
+        - name: FFMPEG_ARGS
+          valueFrom:
+            configMapKeyRef:
+              name: video-server-config
+              key: ffmpeg-args
+        volumeMounts:
         - name: video
-          persistentVolumeClaim:
-            claimName: video-source
+          mountPath: /media
+          readOnly: true
+        - name: hls
+          mountPath: /hls
+        resources:
+          requests:
+            cpu: '2'
+            memory: 1Gi
+          limits:
+            cpu: '4'
+            memory: 4Gi
+      - name: nginx
+        image: docker.io/nginxinc/nginx-unprivileged:1.27-alpine
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        ports:
+        - name: http
+          containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        volumeMounts:
         - name: nginx-conf
-          configMap:
-            name: nginx-config
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+        - name: hls
+          mountPath: /usr/share/nginx/html/hls
         - name: player
-          configMap:
-            name: video-player
+          mountPath: /usr/share/nginx/html/player
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+      volumes:
+      - name: hls
+        emptyDir: {}
+      - name: video
+        persistentVolumeClaim:
+          claimName: video-source
+      - name: nginx-conf
+        configMap:
+          name: nginx-config
+      - name: player
+        configMap:
+          name: video-player
+  strategy:
+    type: Recreate

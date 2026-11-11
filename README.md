@@ -67,6 +67,18 @@ kubectl apply -k applications/webrtc/overlays/azure
 Argo CD. If the Envoy LoadBalancer IP changes, run the address helper with
 `--restart` so LiveKit advertises the new endpoint.
 
+## UDP packet sizing and source pacing
+
+The admin bootstrap enables EnvoyPatchPolicy and applies only
+`manifests/envoy-operator/udp-buffer-policy.yaml`, targeted at this Gateway's
+TURN listener. Application RBAC does not grant EnvoyPatchPolicy access. The
+policy raises downstream/upstream UDP receive datagram limits from the Envoy
+1500-byte default to 65535; larger TURN-wrapped DTLS packets otherwise get
+dropped and can make Meet fail after ICE connects. This low-level policy is
+version-pinned with the controller and should be revalidated during upgrades.
+The HLS encoder is paced with `-re` so Ingress can consume segments before they
+are deleted; the stream manager still retries source failures.
+
 ## TURN authentication and private networking
 
 LiveKit's native embedded-TURN advertisement uses its private node IP. The init

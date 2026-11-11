@@ -9,13 +9,10 @@ data:
   # Name of the video file copied into the `video-source` PVC. The sample
   # asset in video/ (gitignored) is free-video.webm (vp9/opus).
   video-file: "video.webm"
-  # Transcode to h264/aac for browser HLS. No -re: encode as fast as the
-  # CPU allows so the live playlist stays ahead of the player. ultrafast +
-  # 720p keeps a ~1GB vp9 source near/above realtime on 2 cores.
-  # For already-compatible sources (h264/aac mp4) use stream copy:
-  #   -re -stream_loop -1 -i /media/video.mp4 -c:v copy -c:a copy -f hls ...
+  # Pace the looping source at realtime so live HLS consumers do not lose
+  # fragments that an unpaced encoder has already rotated out of the window.
   ffmpeg-args: >-
-    -stream_loop -1 -i /media/video.webm
+    -re -stream_loop -1 -i /media/video.webm
     -vf scale=-2:720
     -c:v libx264 -preset ultrafast -tune zerolatency
     -profile:v main -pix_fmt yuv420p -g 48 -keyint_min 48

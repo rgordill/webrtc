@@ -12,6 +12,8 @@ config:
     logging:
       level:
         default: info
+    extensionApis:
+      enableEnvoyPatchPolicy: true
 deployment:
   envoyGateway:
     securityContext:

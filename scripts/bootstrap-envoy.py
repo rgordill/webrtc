@@ -92,3 +92,7 @@ uid = namespace['metadata']['annotations']['openshift.io/sa.scc.uid-range'].spli
 subprocess.run(kubectl + ['-n', 'openshift-gitops', 'annotate', 'secret',
     'openshift-gitops-cluster-configuration', 'media-uid=' + uid, '--overwrite'], check=True)
 print('Published media SCC UID for namespace-safe Envoy containers:', uid)
+
+subprocess.run(kubectl + ['-n', 'envoy-gateway-system', 'rollout', 'restart', 'deployment/envoy-gateway'], check=True)
+subprocess.run(kubectl + ['-n', 'envoy-gateway-system', 'rollout', 'status', 'deployment/envoy-gateway', '--timeout=120s'], check=True)
+subprocess.run(kubectl + ['apply', '-f', str(root / 'manifests/envoy-operator/udp-buffer-policy.yaml')], check=True)

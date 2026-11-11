@@ -12,6 +12,7 @@ parser.add_argument('--kubeconfig', required=True)
 parser.add_argument('--url', required=True, help='HTTPS URL of the livekit-test page')
 parser.add_argument('--server-url', required=True, help='Public LiveKit WSS URL')
 parser.add_argument('--room', default='video-stream')
+parser.add_argument('--observe-seconds',type=int,default=5,help='Duration to verify increasing media counters')
 parser.add_argument('--expected-turn-host', help='Require selected relay candidates to use this public TURN host')
 parser.add_argument('--allow-private-ca', action='store_true')
 args = parser.parse_args()
@@ -41,7 +42,7 @@ async def main():
   await meet.get_by_text('Provided video',exact=True).first.wait_for(timeout=60000)
   await asyncio.sleep(10)
   before=[await page.evaluate(STATS) for page in [player,meet]]
-  await asyncio.sleep(5)
+  await asyncio.sleep(args.observe_seconds)
   after=[await page.evaluate(STATS) for page in [player,meet]]
   for name,first,last in zip(['strict relay player','LiveKit Meet'],before,after):
    active=[pc for pc in last if pc['state']=='connected']
