@@ -11,8 +11,9 @@ Browser WSS/HTTPS → OpenShift TLS edge → Envoy HTTPRoute → LiveKit / playe
 Browser TURN/UDP → Azure LB → Envoy UDPRoute :3478 → LiveKit embedded TURN → SFU :7882
 ```
 
-OpenShift's existing DNS and labmad certificates remain the TLS edge. All three
-web endpoints route through Envoy; Envoy's public UDP listener exposes LiveKit
+OpenShift's existing DNS remains the TLS edge. The LiveKit endpoints retain their
+labmad certificates; the HLS URL retains its original OpenShift certificate. All
+three web endpoints route through Envoy; Envoy's public UDP listener exposes LiveKit
 TURN. No STUNner controller, dataplane, custom UDPRoute or credentials are used
 by the `main` configuration. The standard-group `gateway.networking.k8s.io/v1alpha2`
 UDPRoute selects the LiveKit TURN port, **not** its raw media port.
@@ -242,7 +243,8 @@ Chromium installed):
 python3 scripts/verify-stream.py --kubeconfig "$KUBECONFIG" \
   --url https://livekit-test.apps.demo.p225x.azure.redhatworkshops.io/ \
   --server-url wss://livekit.apps.demo.p225x.azure.redhatworkshops.io \
-  --expected-turn-host "$(kubectl -n media get cm livekit-public-endpoint -o jsonpath='{.data.host}')"
+  --expected-turn-host "$(kubectl -n media get cm livekit-public-endpoint -o jsonpath='{.data.host}')" \
+  --observe-seconds 60
 ```
 
 Run without `--allow-private-ca` to check the labmad trust chain as well.
@@ -264,7 +266,8 @@ kubectl -n media logs deploy/livekit-stream --tail=10
 python3 scripts/verify-stream.py --kubeconfig "$KUBECONFIG" \
   --url https://livekit-test.apps.demo.p225x.azure.redhatworkshops.io/ \
   --server-url wss://livekit.apps.demo.p225x.azure.redhatworkshops.io \
-  --expected-turn-host "$(kubectl -n media get cm livekit-public-endpoint -o jsonpath='{.data.host}')"
+  --expected-turn-host "$(kubectl -n media get cm livekit-public-endpoint -o jsonpath='{.data.host}')" \
+  --observe-seconds 60
 ```
 
 The browser check verifies that both the relay-only player and hosted Meet receive
